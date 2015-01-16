@@ -1,6 +1,9 @@
 module Sudoku (
   loadBoardFromFile,
-  generateAllPossibilities
+  generateAllPossibilities,
+  solveBoard,
+  getNextMove,
+  applyMove
 ) where
 
 import Data.List
@@ -14,6 +17,8 @@ allNums = [1,2,3,4,5,6,7,8,9]
 
 allIndexes :: [Int]
 allIndexes = [0,1,2,3,4,5,6,7,8]
+
+-- public
 
 loadBoardFromFile :: String -> Board
 loadBoardFromFile content = map convertStringsToInts $ map words $ lines content
@@ -29,6 +34,25 @@ generateAllPossibilities board =
           if b !! row !! col /= 0 then [b !! row !! col]
           else removeAllExistingNums row col
 
+solveBoard :: Board -> Board
+solveBoard board =
+  if value == 0 then board
+  else solveBoard (applyMove board (row, col, value))
+  where (row, col, value) = getNextMove board (generateAllPossibilities board) 1 1
+
+applyMove :: Board -> (Int, Int, Int) -> Board
+applyMove (row : anotherRows) (1, colNum, value) = (applyMoveToRow row (colNum, value) : anotherRows)
+  where applyMoveToRow (_ : anotherFields) (1, v) = (v : anotherFields)
+        applyMoveToRow (field : anotherFields) (c, v) = (field : applyMoveToRow anotherFields (c - 1, v))
+        applyMoveToRow [] (_, _) = []
+applyMove (row : anotherRows) (rowNum, colNum, value) = (row : applyMove anotherRows (rowNum - 1, colNum, value))
+
+getNextMove :: Board -> BoardPossibilities -> Int -> Int -> (Int, Int, Int)
+getNextMove [] _ _ _ = (0, 0, 0)
+getNextMove ([] : anotherRows) ([] : anotherPRows) row _ = getNextMove anotherRows anotherPRows (row + 1) 1
+getNextMove ((field : anotherFields) : anotherRows) ((possibilities : anotherPFields) : anotherPRows) row col =
+  if length possibilities == 1 && field == 0 then (row, col, head possibilities)
+  else getNextMove (anotherFields : anotherRows) (anotherPFields : anotherPRows) row (col + 1)
 
 -- private
 
