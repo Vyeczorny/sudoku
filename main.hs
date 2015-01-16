@@ -1,5 +1,6 @@
 import           Sudoku
 import           System.Environment
+import Data.List.Split
 
 main :: IO ()
 main = do
@@ -9,4 +10,4 @@ main = do
   else do
     content <- readFile $ args !! 0
     putStrLn "-----"
-    mapM_ print $ loadBoardFromFile content
+    mapM_ print $ chunksOf 9 $ generateAllPossibilities $ loadBoardFromFile content

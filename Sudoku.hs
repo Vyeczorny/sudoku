@@ -1,19 +1,37 @@
 module Sudoku (
-  loadBoardFromFile
+  loadBoardFromFile,
+  generateAllPossibilities
 ) where
 
 import Data.List.Split
+import Data.List
 
-type Field = Int
-type Board = [Field]
+type Value = Int
+type Board = [Value]
+type PossibilitiesBoard = [[Value]]
 
 allNums :: [Int]
-allNums = [1,2,3,4,5,6,7,8,9]
+allNums = [1..9]
 
 allIndexes :: [Int]
-allIndexes = [0,1,2,3,4,5,6,7,8]
+allIndexes = [0..8]
+
+allFieldIndexes :: [Int]
+allFieldIndexes = [0..80]
 
 -- public
+
+generateAllPossibilities :: Board -> PossibilitiesBoard
+generateAllPossibilities board = 
+  map (\n -> 
+    if board !! n == 0 then ((allNums \\ rows !! rowIndex n) \\ cols !! colIndex n ) \\ boxes !! boxIndex n
+    else [board !! n]) allFieldIndexes
+  where 
+    rows = numsForRows board
+    cols = numsForCols board
+    boxes = numsForBoxes board
+
+-- private
 
 loadBoardFromFile :: String -> Board
 loadBoardFromFile content = map convertStringToInt $ words content
@@ -34,3 +52,9 @@ numsForBoxes board = map numsForBox allIndexes
 
 boxIndex :: Int -> Int
 boxIndex n = (n `div` 27) * 3 + (n `mod` 9 `div` 3)
+
+rowIndex :: Int -> Int
+rowIndex n = n `div` 9
+
+colIndex :: Int -> Int
+colIndex n = n `mod` 9
