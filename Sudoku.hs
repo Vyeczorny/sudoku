@@ -32,7 +32,7 @@ solve board movesBoard =
 
 tryApplyMoves :: Board -> (Int, [Int]) -> Board
 tryApplyMoves _ (_, []) = []
-tryApplyMoves board (index, (move : nextMoves)) = 
+tryApplyMoves board (index, move : nextMoves) = 
   if solvedBoard /= [] then solvedBoard
   else tryApplyMoves board (index, nextMoves)
     where newBoard = setField board index move
@@ -57,10 +57,10 @@ getNonSolvedField :: Board -> MovesBoard -> (Int, [Int])
 getNonSolvedField board movesBoard = getNonSolvedFieldAux board movesBoard 0 (-1, [1..10])
   where
     getNonSolvedFieldAux [] _ _ (bestIndex, bestMoves) = (bestIndex, bestMoves)
-    getNonSolvedFieldAux (0 : nextValues) (moves : nextMoves) index (bestIndex, bestMoves) =
-      if movesLength == 1 then (index, moves)
-      else if movesLength < bestMovesLength && movesLength > 0 then getNonSolvedFieldAux nextValues nextMoves (index + 1) (index, moves)
-      else getNonSolvedFieldAux nextValues nextMoves (index + 1) (bestIndex, bestMoves)
+    getNonSolvedFieldAux (0 : nextValues) (moves : nextMoves) index (bestIndex, bestMoves)
+      | movesLength == 1 = (index, moves)
+      | movesLength < bestMovesLength && movesLength > 0 = getNonSolvedFieldAux nextValues nextMoves (index + 1) (index, moves)
+      | otherwise = getNonSolvedFieldAux nextValues nextMoves (index + 1) (bestIndex, bestMoves)
         where movesLength = length moves
               bestMovesLength = length bestMoves
     getNonSolvedFieldAux (_ : nextValues) (_ : nextMoves) index (bestIndex, bestMoves) = getNonSolvedFieldAux nextValues nextMoves (index + 1) (bestIndex, bestMoves)
@@ -71,25 +71,25 @@ loadBoardFromFile :: String -> Board
 loadBoardFromFile content = map convertStringToInt $ words content
 
 setField :: Board -> Int -> Int -> Board
-setField (_ : nextValues) 0 newValue = (newValue : nextValues)
-setField (value : nextValues) index newValue = (value : setField nextValues (index - 1) newValue)
+setField (_ : nextValues) 0 newValue = newValue : nextValues
+setField (value : nextValues) index newValue = value : setField nextValues (index - 1) newValue
 
 convertStringToInt :: String -> Int
 convertStringToInt str = if str == "." then 0 else read str :: Int
 
 numsForRows :: Board -> [[Int]]
-numsForRows board = chunksOf 9 board
+numsForRows = chunksOf 9 
 
 numsForCols :: Board -> [[Int]]
 numsForCols board = map (\n -> getEvery9 $ drop n board) allIndexes
   where getEvery9 [] = []
-        getEvery9 _board = (head _board : (getEvery9 $ drop 9 _board))
+        getEvery9 _board = head _board : getEvery9 (drop 9 _board)
 
 numsForBoxes :: Board -> [[Int]]
 numsForBoxes board = map (\n -> getValuesOnIndexes board 0 (fieldsInBox !! n)) allIndexes
   where getValuesOnIndexes _ _ [] = []
         getValuesOnIndexes (value : nextValues) fieldIndex (index : nextIndexes) =
-          if fieldIndex == index then (value : getValuesOnIndexes nextValues (fieldIndex + 1) (nextIndexes))
+          if fieldIndex == index then value : getValuesOnIndexes nextValues (fieldIndex + 1) nextIndexes
           else getValuesOnIndexes nextValues (fieldIndex + 1) (index : nextIndexes)
 
 fieldsInBox :: [[Int]]

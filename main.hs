@@ -1,12 +1,12 @@
-import           Sudoku
-import           System.Environment
-import Data.List.Split
+ import           Data.List.Split
+ import           Sudoku
+ import           System.Environment
 
-main :: IO ()
-main = do
-  args <- getArgs
-  if (length args) == 0 then
-    print "[ERROR] Filepath to file with board required"
-  else do
-    content <- readFile $ args !! 0
-    mapM_ print $ chunksOf 9 $ solve (loadBoardFromFile content) (generateAllMoves $ loadBoardFromFile content)
+ main :: IO ()
+ main = do
+   args <- getArgs
+   if null args then
+     print "[ERROR] Filepath to file with board required"
+   else do
+     content <- readFile $ head args
+     mapM_ print $ chunksOf 9 $ solve (loadBoardFromFile content) (generateAllMoves $ loadBoardFromFile content)
