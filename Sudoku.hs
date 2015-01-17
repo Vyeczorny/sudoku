@@ -1,6 +1,7 @@
 module Sudoku (
   loadBoardFromFile,
-  generateAllPossibilities
+  generateAllPossibilities,
+  solve
 ) where
 
 import Data.List.Split
@@ -8,7 +9,7 @@ import Data.List
 
 type Value = Int
 type Board = [Value]
-type PossibilitiesBoard = [[Value]]
+type MovesBoard = [[Value]]
 
 allNums :: [Int]
 allNums = [1..9]
@@ -21,7 +22,21 @@ allFieldIndexes = [0..80]
 
 -- public
 
-generateAllPossibilities :: Board -> PossibilitiesBoard
+solve :: Board -> MovesBoard -> Board
+solve board moves = solveAux board board moves 0
+  where solveAux [] board _ _ = board
+        solveAux (0 : _) board (moves : _) index = tryApplyMoves board (index, moves)
+        solveAux (_ : nextValues) board (_ : nextMoves) index = solveAux nextValues board nextMoves (index + 1)
+
+tryApplyMoves :: Board -> (Int, [Int]) -> Board
+tryApplyMoves _ (_, []) = []
+tryApplyMoves board (index, (move : nextMoves)) = 
+  if solvedBoard /= [] then solvedBoard
+  else tryApplyMoves board (index, nextMoves)
+    where newBoard = setField board index move
+          solvedBoard = solve newBoard (generateAllPossibilities newBoard)
+
+generateAllPossibilities :: Board -> MovesBoard
 generateAllPossibilities board = 
   map (\n -> 
     if board !! n == 0 then ((allNums \\ rows !! rowIndex n) \\ cols !! colIndex n ) \\ boxes !! boxIndex n
@@ -31,13 +46,31 @@ generateAllPossibilities board =
     cols = numsForCols board
     boxes = numsForBoxes board
 
+
+-- getNonSolvedField :: Board -> MovesBoard -> (Int, [Int])
+-- getNonSolvedField board movesBoard = getNonSolvedFieldAux board movesBoard 0 (-1, [1..10])
+--   where
+--     getNonSolvedFieldAux [] _ _ (bestIndex, bestMoves) = (bestIndex, bestMoves)
+--     getNonSolvedFieldAux (0 : nextValues) (moves : nextMoves) index (bestIndex, bestMoves) =
+--       if movesLength == 1 then (index, moves)
+--       else if movesLength < bestMovesLength && movesLength > 0 then getNonSolvedFieldAux nextValues nextMoves (index + 1) (index, moves)
+--       else getNonSolvedFieldAux nextValues nextMoves (index + 1) (bestIndex, bestMoves)
+--         where movesLength = length moves
+--               bestMovesLength = length bestMoves
+--     getNonSolvedFieldAux (_ : nextValues) (_ : nextMoves) index (bestIndex, bestMoves) = getNonSolvedFieldAux nextValues nextMoves (index + 1) (bestIndex, bestMoves)
+
+
 -- private
 
 loadBoardFromFile :: String -> Board
 loadBoardFromFile content = map convertStringToInt $ words content
 
+setField :: Board -> Int -> Int -> Board
+setField (_ : nextValues) 0 newValue = (newValue : nextValues)
+setField (value : nextValues) index newValue = (value : setField nextValues (index - 1) newValue)
+
 convertStringToInt :: String -> Int
-convertStringToInt str = if str == "_" then 0 else read str :: Int
+convertStringToInt str = if str == "." then 0 else read str :: Int
 
 numsForRows :: Board -> [[Int]]
 numsForRows board = chunksOf 9 board

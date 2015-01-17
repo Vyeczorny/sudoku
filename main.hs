@@ -9,5 +9,4 @@ main = do
     print "[ERROR] Filepath to file with board required"
   else do
     content <- readFile $ args !! 0
-    putStrLn "-----"
-    mapM_ print $ chunksOf 9 $ generateAllPossibilities $ loadBoardFromFile content
+    mapM_ print $ chunksOf 9 $ solve (loadBoardFromFile content) (generateAllPossibilities $ loadBoardFromFile content)
