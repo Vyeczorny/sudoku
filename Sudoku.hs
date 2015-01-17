@@ -1,6 +1,6 @@
 module Sudoku (
   loadBoardFromFile,
-  generateAllPossibilities,
+  generateAllMoves,
   solve
 ) where
 
@@ -23,10 +23,12 @@ allFieldIndexes = [0..80]
 -- public
 
 solve :: Board -> MovesBoard -> Board
-solve board moves = solveAux board board moves 0
-  where solveAux [] board _ _ = board
-        solveAux (0 : _) board (moves : _) index = tryApplyMoves board (index, moves)
-        solveAux (_ : nextValues) board (_ : nextMoves) index = solveAux nextValues board nextMoves (index + 1)
+solve board movesBoard = 
+  if index == -1 then
+    if isBoardSolved board then board
+    else []
+  else tryApplyMoves board (index, moves)
+    where (index, moves) = getNonSolvedField board movesBoard
 
 tryApplyMoves :: Board -> (Int, [Int]) -> Board
 tryApplyMoves _ (_, []) = []
@@ -34,10 +36,15 @@ tryApplyMoves board (index, (move : nextMoves)) =
   if solvedBoard /= [] then solvedBoard
   else tryApplyMoves board (index, nextMoves)
     where newBoard = setField board index move
-          solvedBoard = solve newBoard (generateAllPossibilities newBoard)
+          solvedBoard = solve newBoard (generateAllMoves newBoard)
 
-generateAllPossibilities :: Board -> MovesBoard
-generateAllPossibilities board = 
+isBoardSolved :: Board -> Bool
+isBoardSolved [] = True
+isBoardSolved (0 : _) = False
+isBoardSolved (_ : nextValues) = isBoardSolved nextValues
+
+generateAllMoves :: Board -> MovesBoard
+generateAllMoves board = 
   map (\n -> 
     if board !! n == 0 then ((allNums \\ rows !! rowIndex n) \\ cols !! colIndex n ) \\ boxes !! boxIndex n
     else [board !! n]) allFieldIndexes
@@ -46,19 +53,17 @@ generateAllPossibilities board =
     cols = numsForCols board
     boxes = numsForBoxes board
 
-
--- getNonSolvedField :: Board -> MovesBoard -> (Int, [Int])
--- getNonSolvedField board movesBoard = getNonSolvedFieldAux board movesBoard 0 (-1, [1..10])
---   where
---     getNonSolvedFieldAux [] _ _ (bestIndex, bestMoves) = (bestIndex, bestMoves)
---     getNonSolvedFieldAux (0 : nextValues) (moves : nextMoves) index (bestIndex, bestMoves) =
---       if movesLength == 1 then (index, moves)
---       else if movesLength < bestMovesLength && movesLength > 0 then getNonSolvedFieldAux nextValues nextMoves (index + 1) (index, moves)
---       else getNonSolvedFieldAux nextValues nextMoves (index + 1) (bestIndex, bestMoves)
---         where movesLength = length moves
---               bestMovesLength = length bestMoves
---     getNonSolvedFieldAux (_ : nextValues) (_ : nextMoves) index (bestIndex, bestMoves) = getNonSolvedFieldAux nextValues nextMoves (index + 1) (bestIndex, bestMoves)
-
+getNonSolvedField :: Board -> MovesBoard -> (Int, [Int])
+getNonSolvedField board movesBoard = getNonSolvedFieldAux board movesBoard 0 (-1, [1..10])
+  where
+    getNonSolvedFieldAux [] _ _ (bestIndex, bestMoves) = (bestIndex, bestMoves)
+    getNonSolvedFieldAux (0 : nextValues) (moves : nextMoves) index (bestIndex, bestMoves) =
+      if movesLength == 1 then (index, moves)
+      else if movesLength < bestMovesLength && movesLength > 0 then getNonSolvedFieldAux nextValues nextMoves (index + 1) (index, moves)
+      else getNonSolvedFieldAux nextValues nextMoves (index + 1) (bestIndex, bestMoves)
+        where movesLength = length moves
+              bestMovesLength = length bestMoves
+    getNonSolvedFieldAux (_ : nextValues) (_ : nextMoves) index (bestIndex, bestMoves) = getNonSolvedFieldAux nextValues nextMoves (index + 1) (bestIndex, bestMoves)
 
 -- private
 
@@ -76,12 +81,29 @@ numsForRows :: Board -> [[Int]]
 numsForRows board = chunksOf 9 board
 
 numsForCols :: Board -> [[Int]]
-numsForCols board = map numsForCol allIndexes
-  where numsForCol col = [board !! (9 * i + col) | i <- allIndexes]
+numsForCols board = map (\n -> getEvery9 $ drop n board) allIndexes
+  where getEvery9 [] = []
+        getEvery9 _board = (head _board : (getEvery9 $ drop 9 _board))
 
 numsForBoxes :: Board -> [[Int]]
-numsForBoxes board = map numsForBox allIndexes
-  where numsForBox n = [board !! (27 * (n `div` 3) + 3 * (n `mod` 3) + i) | i <- [0,1,2,9,10,11,18,19,20]]
+numsForBoxes board = map (\n -> getValuesOnIndexes board 0 (fieldsInBox !! n)) allIndexes
+  where getValuesOnIndexes _ _ [] = []
+        getValuesOnIndexes (value : nextValues) fieldIndex (index : nextIndexes) =
+          if fieldIndex == index then (value : getValuesOnIndexes nextValues (fieldIndex + 1) (nextIndexes))
+          else getValuesOnIndexes nextValues (fieldIndex + 1) (index : nextIndexes)
+
+fieldsInBox :: [[Int]]
+fieldsInBox = [
+                [0,1,2,9,10,11,18,19,20],
+                [3,4,5,12,13,14,21,22,23],
+                [6,7,8,15,16,17,24,25,26],
+                [27,28,29,36,37,38,45,46,47],
+                [30,31,32,39,40,41,48,49,50],
+                [33,34,35,42,43,44,51,52,53],
+                [54,55,56,63,64,65,72,73,74],
+                [57,58,59,66,67,68,75,76,77],
+                [60,61,62,69,70,71,78,79,80]
+              ]
 
 boxIndex :: Int -> Int
 boxIndex n = (n `div` 27) * 3 + (n `mod` 9 `div` 3)
