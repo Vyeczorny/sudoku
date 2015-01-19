@@ -4,15 +4,17 @@ import System.Exit
 import Data.Char
 import UI.HSCurses.Curses as HSCurses
 import UI.HSCurses.CursesHelper as HSHelpers
+import Data.List.Split
 
--- main :: IO ()
--- main = do
---   args <- getArgs
---   if null args then
---     print "[ERROR] Filepath to file with board required"
---   else do
---     content <- readFile $ head args
---     mapM_ print $ chunksOf 9 $ solve (loadBoardFromFile content) (generateAllMoves $ loadBoardFromFile content)
+main :: IO ()
+main = do
+  args <- getArgs
+  if null args then
+    print "[ERROR] Filepath to file with board required"
+  else do
+    file <- readFile $ head args
+    let board = loadBoardFromFile file
+    mapM_ print $ chunksOf 9 $ fields $ solveBoard board (generateAllMoves board)
 
 type CursorPosition = (Int, Int)
 
@@ -21,7 +23,7 @@ grey = Color 100
 
 drawBoard :: Board -> IO ()
 drawBoard board = do
-  drawBoardAux board 0
+  drawBoardAux (fields board) 0
   refresh
     where drawBoardAux [value] index = drawField index value
           drawBoardAux (value : nextValues) index = do
@@ -44,7 +46,6 @@ drawField index value = do
   attrSet attr0 (Pair 1)
   mvWAddStr stdScr (row + 1) (col + 2) (if value == 0 then " " else show value)
  
-
 drawCursor :: (Int, Int) -> IO ()
 drawCursor (row, col) = do
   attrSet attr0 (Pair 1)
@@ -54,26 +55,49 @@ drawCursor (row, col) = do
   mvWAddStr stdScr (row * 2 + 1) (col * 4 + 4) "|"
   refresh
 
-main :: IO ()
-main = do
-  window <- initScr
-  args <- getArgs
-  file <- readFile $ head args
+drawInfoBar :: String -> IO ()
+drawInfoBar info = do
+  (srcRows, srcCols) <- scrSize
+  if info == "" then mvWAddStr stdScr (srcRows - 1) 0 $ replicate (srcCols - 10) ' '  
+  else mvWAddStr stdScr (srcRows - 1) 0 info
 
-  echo False
-  keypad window True
-  cursSet CursorInvisible
+drawMenu :: IO ()
+drawMenu = do
+  attrSet attr0 (Pair 3)
+  mvWAddStr stdScr 0 40 "         Menu         "
+  mvWAddStr stdScr 1 40 " Arrows "
+  mvWAddStr stdScr 2 40 " 0-9    "
+  mvWAddStr stdScr 3 40 " h      "
+  mvWAddStr stdScr 4 40 " q      "
 
-  startColor
-  initColor grey (128, 128, 128)
-  initPair (Pair 1) white black
-  initPair (Pair 2) grey black
+  attrSet attr0 (Pair 1)
+  mvWAddStr stdScr 1 48 " Show cursor"
+  mvWAddStr stdScr 2 48 " Insert value"
+  mvWAddStr stdScr 3 48 " Show hint"
+  mvWAddStr stdScr 4 48 " Quit"
 
-  runGame (loadBoardFromFile file) (0, 0)
+-- main :: IO ()
+-- main = do
+--   window <- initScr
+--   args <- getArgs
+--   file <- readFile $ head args
+
+--   echo False
+--   keypad window True
+--   cursSet CursorInvisible
+
+--   startColor
+--   initColor grey (128, 128, 128)
+--   initPair (Pair 1) white black
+--   initPair (Pair 2) grey black
+--   initPair (Pair 3) black white
+
+--   runGame (loadBoardFromFile file) (0, 0)
 
 runGame :: Board -> CursorPosition -> IO ()
 runGame board (row, col) = do
   drawBoard board
+  drawMenu
   Main.drawCursor (row, col)
   c <- getCh
   if c == KeyLeft then 
@@ -92,8 +116,7 @@ runGame board (row, col) = do
     else if char == ' ' then
       runGame (setField board (9 * row + col) 0) (row, col)
   else do
-    (srcRows, _) <- scrSize
-    mvWAddStr stdScr (srcRows - 1) 2 $ "Unrecognized key: " ++ show c
+    drawInfoBar $ "Unrecognized key: " ++ show c
     runGame board (row, col)
 
 

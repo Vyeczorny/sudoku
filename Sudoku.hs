@@ -1,19 +1,25 @@
 module Sudoku (
-  Board,
-  Row,
+  Board, fields, constFields,
   loadBoardFromFile,
   generateAllMoves,
   setField,
-  solve
+  solveBoard
 ) where
 
 import Data.List.Split
 import Data.List
 
 type Value = Int
-type Row = [Value]
-type Board = Row
+type Index = Int
+type BoardData = [Value]
+data Board = Board
+  { fields       :: BoardData
+  , constFields :: [Index]
+  } deriving Show
 type MovesBoard = [[Value]]
+
+emptyBoard :: Board
+emptyBoard = Board { fields = [], constFields = [] }
 
 allNums :: [Int]
 allNums = [1..9]
@@ -26,7 +32,10 @@ allFieldIndexes = [0..80]
 
 -- public
 
-solve :: Board -> MovesBoard -> Board
+solveBoard :: Board -> MovesBoard -> Board
+solveBoard board movesBoard = Board { fields = solve (fields board) movesBoard, constFields = constFields board }
+
+solve :: BoardData -> MovesBoard -> BoardData
 solve board movesBoard = 
   if index == -1 then
     if isBoardSolved board then board
@@ -34,21 +43,24 @@ solve board movesBoard =
   else tryApplyMoves board (index, moves)
     where (index, moves) = getNonSolvedField board movesBoard
 
-tryApplyMoves :: Board -> (Int, [Int]) -> Board
+tryApplyMoves :: BoardData -> (Int, [Int]) -> BoardData
 tryApplyMoves _ (_, []) = []
 tryApplyMoves board (index, move : nextMoves) = 
   if solvedBoard /= [] then solvedBoard
   else tryApplyMoves board (index, nextMoves)
-    where newBoard = setField board index move
-          solvedBoard = solve newBoard (generateAllMoves newBoard)
+    where newBoard = setFieldOnBoardData board index move
+          solvedBoard = solve newBoard (generateAllMovesFromBoardData newBoard)
 
-isBoardSolved :: Board -> Bool
+isBoardSolved :: BoardData -> Bool
 isBoardSolved [] = True
 isBoardSolved (0 : _) = False
 isBoardSolved (_ : nextValues) = isBoardSolved nextValues
 
 generateAllMoves :: Board -> MovesBoard
-generateAllMoves board = 
+generateAllMoves board = generateAllMovesFromBoardData $ fields board
+
+generateAllMovesFromBoardData :: BoardData -> MovesBoard
+generateAllMovesFromBoardData board = 
   map (\n -> 
     if board !! n == 0 then ((allNums \\ rows !! rowIndex n) \\ cols !! colIndex n ) \\ boxes !! boxIndex n
     else [board !! n]) allFieldIndexes
@@ -57,7 +69,7 @@ generateAllMoves board =
     cols = numsForCols board
     boxes = numsForBoxes board
 
-getNonSolvedField :: Board -> MovesBoard -> (Int, [Int])
+getNonSolvedField :: BoardData -> MovesBoard -> (Int, [Int])
 getNonSolvedField board movesBoard = getNonSolvedFieldAux board movesBoard 0 (-1, [1..10])
   where
     getNonSolvedFieldAux [] _ _ (bestIndex, bestMoves) = (bestIndex, bestMoves)
@@ -72,24 +84,37 @@ getNonSolvedField board movesBoard = getNonSolvedFieldAux board movesBoard 0 (-1
 -- private
 
 loadBoardFromFile :: String -> Board
-loadBoardFromFile content = map convertStringToInt $ words content
+loadBoardFromFile file = Board { fields = boardData, constFields = constFields }
+  where boardData = map convertStringToInt $ words file
+        constFields = getAllNonZeroFields boardData
+
+getAllNonZeroFields :: BoardData -> [Index]
+getAllNonZeroFields board = getAllNonZeroFieldsAux board 0
+  where getAllNonZeroFieldsAux [] _ = []
+        getAllNonZeroFieldsAux (value : nextValues) index = 
+          if value == 0 then (index : getAllNonZeroFieldsAux nextValues (index + 1))
+          else getAllNonZeroFieldsAux nextValues (index + 1)
 
 setField :: Board -> Int -> Int -> Board
-setField (_ : nextValues) 0 newValue = newValue : nextValues
-setField (value : nextValues) index newValue = value : setField nextValues (index - 1) newValue
+setField board index newValue = Board { fields = setFieldOnBoardData (fields board) index newValue 
+                                      , constFields = constFields board }
+
+setFieldOnBoardData :: BoardData -> Int -> Int -> BoardData
+setFieldOnBoardData (_ : nextValues) 0 newValue = newValue : nextValues
+setFieldOnBoardData (value : nextValues) index newValue = value : setFieldOnBoardData nextValues (index - 1) newValue
 
 convertStringToInt :: String -> Int
 convertStringToInt str = if str == "." then 0 else read str :: Int
 
-numsForRows :: Board -> [[Int]]
+numsForRows :: BoardData -> [[Int]]
 numsForRows = chunksOf 9 
 
-numsForCols :: Board -> [[Int]]
+numsForCols :: BoardData -> [[Int]]
 numsForCols board = map (\n -> getEvery9 $ drop n board) allIndexes
   where getEvery9 [] = []
         getEvery9 _board = head _board : getEvery9 (drop 9 _board)
 
-numsForBoxes :: Board -> [[Int]]
+numsForBoxes :: BoardData -> [[Int]]
 numsForBoxes board = map (\n -> getValuesOnIndexes board 0 (fieldsInBox !! n)) allIndexes
   where getValuesOnIndexes _ _ [] = []
         getValuesOnIndexes (value : nextValues) fieldIndex (index : nextIndexes) =
