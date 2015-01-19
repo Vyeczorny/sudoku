@@ -1,6 +1,9 @@
 module Sudoku (
+  Board,
+  Row,
   loadBoardFromFile,
   generateAllMoves,
+  setField,
   solve
 ) where
 
@@ -8,7 +11,8 @@ import Data.List.Split
 import Data.List
 
 type Value = Int
-type Board = [Value]
+type Row = [Value]
+type Board = Row
 type MovesBoard = [[Value]]
 
 allNums :: [Int]
