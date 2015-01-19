@@ -4,30 +4,33 @@ import System.Exit
 import Data.Char
 import UI.HSCurses.Curses as HSCurses
 import UI.HSCurses.CursesHelper as HSHelpers
-import Data.List.Split
+-- import Data.List.Split
 
-main :: IO ()
-main = do
-  args <- getArgs
-  if null args then
-    print "[ERROR] Filepath to file with board required"
-  else do
-    file <- readFile $ head args
-    let board = loadBoardFromFile file
-    mapM_ print $ chunksOf 9 $ fields $ solveBoard board (generateAllMoves board)
+-- main :: IO ()
+-- main = do
+--   args <- getArgs
+--   if null args then
+--     print "[ERROR] Filepath to file with board required"
+--   else do
+--     file <- readFile $ head args
+--     let sudokuBoard = loadBoardFromFile file
+--     mapM_ print $ chunksOf 9 $ fields $ solveBoard sudokuBoard
 
 type CursorPosition = (Int, Int)
 
 grey :: Color
 grey = Color 100
 
+lightGrey :: Color
+lightGrey = Color 101
+
 drawBoard :: Board -> IO ()
-drawBoard board = do
-  drawBoardAux (fields board) 0
+drawBoard sudokuBoard = do
+  drawBoardAux (fields sudokuBoard) 0
   refresh
-    where drawBoardAux [value] index = drawField index value
+    where drawBoardAux [value] index = drawField index value (index `elem` constFields sudokuBoard)
           drawBoardAux (value : nextValues) index = do
-            drawField index value
+            drawField index value (index `elem` constFields sudokuBoard)
             drawBoardAux nextValues (index + 1)
 
 positionForIndex :: Int -> (Int, Int)
@@ -36,14 +39,15 @@ positionForIndex index = (row, col)
         row = (index `div` 9) * 2
         col = (index `mod` 9) * 4
 
-drawField :: Int -> Int -> IO ()
-drawField index value = do
+drawField :: Int -> Int -> Bool -> IO ()
+drawField index value isConstField = do
   let (row, col) = positionForIndex index
   attrSet attr0 (Pair 2)
   mvWAddStr stdScr row       col "-----"
   mvWAddStr stdScr (row + 1) col "|   |"
   mvWAddStr stdScr (row + 2) col "-----"
-  attrSet attr0 (Pair 1)
+  if isConstField then attrSet attr0 (Pair 4)
+  else attrSet attr0 (Pair 1)
   mvWAddStr stdScr (row + 1) (col + 2) (if value == 0 then " " else show value)
  
 drawCursor :: (Int, Int) -> IO ()
@@ -58,8 +62,8 @@ drawCursor (row, col) = do
 drawInfoBar :: String -> IO ()
 drawInfoBar info = do
   (srcRows, srcCols) <- scrSize
-  if info == "" then mvWAddStr stdScr (srcRows - 1) 0 $ replicate (srcCols - 10) ' '  
-  else mvWAddStr stdScr (srcRows - 1) 0 info
+  mvWAddStr stdScr (srcRows - 1) 0 $ replicate (srcCols - 10) ' '  
+  mvWAddStr stdScr (srcRows - 1) 0 info
 
 drawMenu :: IO ()
 drawMenu = do
@@ -76,48 +80,53 @@ drawMenu = do
   mvWAddStr stdScr 3 48 " Show hint"
   mvWAddStr stdScr 4 48 " Quit"
 
--- main :: IO ()
--- main = do
---   window <- initScr
---   args <- getArgs
---   file <- readFile $ head args
+main :: IO ()
+main = do
+  window <- initScr
+  args <- getArgs
+  file <- readFile $ head args
 
---   echo False
---   keypad window True
---   cursSet CursorInvisible
+  echo False
+  keypad window True
+  cursSet CursorInvisible
 
---   startColor
---   initColor grey (128, 128, 128)
---   initPair (Pair 1) white black
---   initPair (Pair 2) grey black
---   initPair (Pair 3) black white
+  startColor
+  initColor grey (128, 128, 128)
+  initColor lightGrey (256, 256, 256)
+  initPair (Pair 1) white black
+  initPair (Pair 2) grey black
+  initPair (Pair 3) black white
+  initPair (Pair 4) lightGrey black
 
---   runGame (loadBoardFromFile file) (0, 0)
+  runGame (loadBoardFromFile file) (0, 0)
 
 runGame :: Board -> CursorPosition -> IO ()
-runGame board (row, col) = do
-  drawBoard board
+runGame sudokuBoard (row, col) = do
+  drawBoard sudokuBoard
   drawMenu
   Main.drawCursor (row, col)
   c <- getCh
   if c == KeyLeft then 
-    runGame board (row, (col - 1) `mod` 9)  
+    runGame sudokuBoard (row, (col - 1) `mod` 9)  
   else if c == KeyRight then 
-    runGame board (row, (col + 1) `mod` 9)
+    runGame sudokuBoard (row, (col + 1) `mod` 9)
   else if c == KeyUp then
-    runGame board ((row - 1) `mod` 9, col)
+    runGame sudokuBoard ((row - 1) `mod` 9, col)
   else if c == KeyDown then
-    runGame board ((row + 1) `mod` 9, col)
+    runGame sudokuBoard ((row + 1) `mod` 9, col)
   else let KeyChar char = c in
     if char == 'q' then
       delWin stdScr >> endWin >> exitWith ExitSuccess
     else if char `elem` ['1','2','3','4','5','6','7','8','9'] then
-      runGame (setField board (9 * row + col) (digitToInt char)) (row, col)
+      if (9 * row + col) `elem` constFields sudokuBoard then do
+        drawInfoBar $ "Cannot change value at point: " ++ show row ++ "," ++ show col
+        runGame sudokuBoard (row, col)
+      else runGame (setField sudokuBoard (9 * row + col) (digitToInt char)) (row, col)
     else if char == ' ' then
-      runGame (setField board (9 * row + col) 0) (row, col)
+      runGame (setField sudokuBoard (9 * row + col) 0) (row, col)
   else do
     drawInfoBar $ "Unrecognized key: " ++ show c
-    runGame board (row, col)
+    runGame sudokuBoard (row, col)
 
 
 

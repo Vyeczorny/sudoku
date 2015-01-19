@@ -1,7 +1,7 @@
 module Sudoku (
   Board, fields, constFields,
+  MovesBoard,
   loadBoardFromFile,
-  generateAllMoves,
   setField,
   solveBoard
 ) where
@@ -18,9 +18,6 @@ data Board = Board
   } deriving Show
 type MovesBoard = [[Value]]
 
-emptyBoard :: Board
-emptyBoard = Board { fields = [], constFields = [] }
-
 allNums :: [Int]
 allNums = [1..9]
 
@@ -32,8 +29,20 @@ allFieldIndexes = [0..80]
 
 -- public
 
-solveBoard :: Board -> MovesBoard -> Board
-solveBoard board movesBoard = Board { fields = solve (fields board) movesBoard, constFields = constFields board }
+solveBoard :: Board -> Board
+solveBoard board = Board { fields = solve boardData (generateAllMoves boardData), constFields = constFields board }
+  where boardData = fields board
+
+loadBoardFromFile :: String -> Board
+loadBoardFromFile file = Board { fields = boardData, constFields = nonZeroFields }
+  where boardData = map convertStringToInt $ words file
+        nonZeroFields = getAllNonZeroFields boardData
+
+setField :: Board -> Int -> Int -> Board
+setField board index newValue = Board { fields = setFieldOnBoardData (fields board) index newValue 
+                                      , constFields = constFields board }
+
+-- private 
 
 solve :: BoardData -> MovesBoard -> BoardData
 solve board movesBoard = 
@@ -49,18 +58,15 @@ tryApplyMoves board (index, move : nextMoves) =
   if solvedBoard /= [] then solvedBoard
   else tryApplyMoves board (index, nextMoves)
     where newBoard = setFieldOnBoardData board index move
-          solvedBoard = solve newBoard (generateAllMovesFromBoardData newBoard)
+          solvedBoard = solve newBoard (generateAllMoves newBoard)
 
 isBoardSolved :: BoardData -> Bool
 isBoardSolved [] = True
 isBoardSolved (0 : _) = False
 isBoardSolved (_ : nextValues) = isBoardSolved nextValues
 
-generateAllMoves :: Board -> MovesBoard
-generateAllMoves board = generateAllMovesFromBoardData $ fields board
-
-generateAllMovesFromBoardData :: BoardData -> MovesBoard
-generateAllMovesFromBoardData board = 
+generateAllMoves :: BoardData -> MovesBoard
+generateAllMoves board = 
   map (\n -> 
     if board !! n == 0 then ((allNums \\ rows !! rowIndex n) \\ cols !! colIndex n ) \\ boxes !! boxIndex n
     else [board !! n]) allFieldIndexes
@@ -81,23 +87,12 @@ getNonSolvedField board movesBoard = getNonSolvedFieldAux board movesBoard 0 (-1
               bestMovesLength = length bestMoves
     getNonSolvedFieldAux (_ : nextValues) (_ : nextMoves) index (bestIndex, bestMoves) = getNonSolvedFieldAux nextValues nextMoves (index + 1) (bestIndex, bestMoves)
 
--- private
-
-loadBoardFromFile :: String -> Board
-loadBoardFromFile file = Board { fields = boardData, constFields = constFields }
-  where boardData = map convertStringToInt $ words file
-        constFields = getAllNonZeroFields boardData
-
 getAllNonZeroFields :: BoardData -> [Index]
 getAllNonZeroFields board = getAllNonZeroFieldsAux board 0
   where getAllNonZeroFieldsAux [] _ = []
         getAllNonZeroFieldsAux (value : nextValues) index = 
-          if value == 0 then (index : getAllNonZeroFieldsAux nextValues (index + 1))
+          if value /= 0 then (index : getAllNonZeroFieldsAux nextValues (index + 1))
           else getAllNonZeroFieldsAux nextValues (index + 1)
-
-setField :: Board -> Int -> Int -> Board
-setField board index newValue = Board { fields = setFieldOnBoardData (fields board) index newValue 
-                                      , constFields = constFields board }
 
 setFieldOnBoardData :: BoardData -> Int -> Int -> BoardData
 setFieldOnBoardData (_ : nextValues) 0 newValue = newValue : nextValues
