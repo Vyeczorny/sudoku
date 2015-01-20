@@ -3,11 +3,14 @@ module Sudoku (
   MovesBoard,
   loadBoardFromFile,
   setField,
-  solveBoard
+  solveBoard,
+  getHint
 ) where
 
 import Data.List.Split
 import Data.List
+import System.IO.Unsafe
+import System.Random
 
 type Value = Int
 type Index = Int
@@ -43,6 +46,15 @@ setField :: Board -> Int -> Int -> Maybe Board
 setField board index newValue = 
   if index `elem` constFields board then Nothing
   else Just Board { fields = setFieldOnBoardData (fields board) index newValue, constFields = constFields board }
+
+getHint :: Board -> Maybe (Int, Int)
+getHint board = case getAllZeroFields $ fields board of 
+  [] -> Nothing
+  zeroFields -> case solveBoard board of
+    Nothing -> Nothing
+    Just solvedBoard -> Just (fieldIndex, (fields solvedBoard) !! fieldIndex)
+      where randNumber = unsafePerformIO $ randomRIO (0, length zeroFields - 1)
+            fieldIndex = zeroFields !! randNumber
 
 -- private 
 
@@ -95,6 +107,13 @@ getAllNonZeroFields board = getAllNonZeroFieldsAux board 0
         getAllNonZeroFieldsAux (value : nextValues) index = 
           if value /= 0 then index : getAllNonZeroFieldsAux nextValues (index + 1)
           else getAllNonZeroFieldsAux nextValues (index + 1)
+
+getAllZeroFields :: BoardData -> [Index]
+getAllZeroFields board = getAllZeroFieldsAux board 0
+  where getAllZeroFieldsAux [] _ = []
+        getAllZeroFieldsAux (value : nextValues) index = 
+          if value == 0 then index : getAllZeroFieldsAux nextValues (index + 1)
+          else getAllZeroFieldsAux nextValues (index + 1)
 
 setFieldOnBoardData :: BoardData -> Int -> Int -> BoardData
 setFieldOnBoardData (_ : nextValues) 0 newValue = newValue : nextValues

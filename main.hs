@@ -114,35 +114,37 @@ runGame sudokuBoard (row, col) = do
   drawMenu
   Main.drawCursor (row, col)
   c <- getCh
-  if c == KeyLeft then 
-    runGame sudokuBoard (row, (col - 1) `mod` 9)  
-  else if c == KeyRight then 
-    runGame sudokuBoard (row, (col + 1) `mod` 9)
-  else if c == KeyUp then
-    runGame sudokuBoard ((row - 1) `mod` 9, col)
-  else if c == KeyDown then
-    runGame sudokuBoard ((row + 1) `mod` 9, col)
-  else let KeyChar char = c in
-    if char == 'q' then
-      delWin stdScr >> endWin >> exitSuccess
-    else if char == 'h' then
-      drawInfoBar "HINT"
-    else if char == 's' then
-      case solveBoard sudokuBoard of 
+  case c of
+    KeyLeft -> runGame sudokuBoard (row, (col - 1) `mod` 9)  
+    KeyRight -> runGame sudokuBoard (row, (col + 1) `mod` 9)
+    KeyUp -> runGame sudokuBoard ((row - 1) `mod` 9, col)
+    KeyDown -> runGame sudokuBoard ((row + 1) `mod` 9, col)
+    KeyChar 'q' -> delWin stdScr >> endWin >> exitSuccess
+    -- KeyChar 'h' -> runGame sudokuBoard (row, col)
+    KeyChar 'h' -> case getHint sudokuBoard of
+      Nothing -> do
+        drawInfoBar $ "Application cannot gives you any hints"
+        runGame sudokuBoard (row, col)
+      Just (pos, value) -> case setField sudokuBoard pos value of
         Nothing -> do
-          drawInfoBar $ "This board hasn't got a solution. Consider removing some digits"
+          drawInfoBar $ "Cannot change value at index: " ++ show pos
           runGame sudokuBoard (row, col)
         Just newSudokuBoard -> runGame newSudokuBoard (row, col)
-    else if char `elem` "123456789 " then do
-      case setField sudokuBoard (9 * row + col) (if char == ' ' then 0 else (digitToInt char)) of 
-        Nothing -> do
-          drawInfoBar $ "Cannot change value at point: " ++ show row ++ "," ++ show col
-          runGame sudokuBoard (row, col)
-        Just newSudokuBoard -> runGame newSudokuBoard (row, col)
-  else do
-    drawInfoBar $ "Unrecognized key: " ++ show c
-    runGame sudokuBoard (row, col)
-
+    KeyChar 's' -> case solveBoard sudokuBoard of 
+      Nothing -> do
+        drawInfoBar $ "This board hasn't got a solution. Consider removing some digits"
+        runGame sudokuBoard (row, col)
+      Just newSudokuBoard -> runGame newSudokuBoard (row, col)
+    KeyChar char -> 
+      if char `elem` "123456789 " then do
+        case setField sudokuBoard (9 * row + col) (if char == ' ' then 0 else (digitToInt char)) of 
+          Nothing -> do
+            drawInfoBar $ "Cannot change value at point: " ++ show row ++ "," ++ show col
+            runGame sudokuBoard (row, col)
+          Just newSudokuBoard -> runGame newSudokuBoard (row, col)
+      else do
+        drawInfoBar $ "Unrecognized key: " ++ show c
+        runGame sudokuBoard (row, col)
 
 
 
