@@ -4,7 +4,10 @@ module Sudoku (
   loadBoardFromFile,
   setField,
   solveBoard,
-  getHint
+  getHint,
+  isBoardCorrect,
+  isBoardSolved,
+  findIncorrectFieldIfAny
 ) where
 
 import Data.List.Split
@@ -19,6 +22,7 @@ data Board = Board
   { fields       :: BoardData
   , constFields :: [Index]
   } deriving Show
+data IncorrectField = Row Int | Column Int | Box Int deriving Show
 type MovesBoard = [[Value]]
 
 allNums :: [Int]
@@ -48,23 +52,69 @@ setField board index newValue =
   else Just Board { fields = setFieldOnBoardData (fields board) index newValue, constFields = constFields board }
 
 getHint :: Board -> Maybe (Int, Int)
-getHint board = case getAllZeroFields $ fields board of 
-  [] -> Nothing
-  zeroFields -> case solveBoard board of
-    Nothing -> Nothing
-    Just solvedBoard -> Just (fieldIndex, (fields solvedBoard) !! fieldIndex)
-      where randNumber = unsafePerformIO $ randomRIO (0, length zeroFields - 1)
-            fieldIndex = zeroFields !! randNumber
+getHint board = case isBoardSolved board || not (isBoardCorrect board) of
+  True -> Nothing
+  False -> case getAllZeroFields $ fields board of 
+    [] -> Nothing
+    zeroFields -> case solveBoard board of
+      Nothing -> Nothing
+      Just solvedBoard -> Just (fieldIndex, (fields solvedBoard) !! fieldIndex)
+        where randNumber = unsafePerformIO $ randomRIO (0, length zeroFields - 1)
+              fieldIndex = zeroFields !! randNumber
+
+isBoardCorrect :: Board -> Bool
+isBoardCorrect board = isBoardCorrectAux f 0
+  where f = fields board
+        isBoardCorrectAux [] _ = True
+        isBoardCorrectAux (value : nextValues) index =
+          if value /= 0 && (not $ isFieldCorrect f value index) then False
+          else isBoardCorrectAux nextValues (index + 1)
+
+findIncorrectFieldIfAny :: Board -> Maybe IncorrectField
+findIncorrectFieldIfAny board = findIncorrectFieldIfAnyAux f 0
+  where f = fields board
+        findIncorrectFieldIfAnyAux [] _ = Nothing
+        findIncorrectFieldIfAnyAux (value : nextValues) index =
+          if value /= 0 then
+            if not $ isFieldCorrectInRow f value index then Just $ Row $ rowIndex index
+            else if not $ isFieldCorrectInCol f value index then Just $ Column $ colIndex index
+            else if not $ isFieldCorrectInBox f value index then Just $ Box $ boxIndex index
+            else findIncorrectFieldIfAnyAux nextValues (index + 1)
+          else findIncorrectFieldIfAnyAux nextValues (index + 1)
+
+isBoardSolved :: Board -> Bool
+isBoardSolved board = isBoardCorrect board && (isBoardDataSolved $ fields board)
 
 -- private 
 
 solve :: BoardData -> MovesBoard -> BoardData
 solve board movesBoard = 
   if index == -1 then
-    if isBoardSolved board then board
+    if isBoardDataSolved board then board
     else []
   else tryApplyMoves board (index, moves)
     where (index, moves) = getNonSolvedField board movesBoard
+
+isBoardDataSolved :: BoardData -> Bool
+isBoardDataSolved [] = True
+isBoardDataSolved (0 : _) = False
+isBoardDataSolved (_ : nextValues) = isBoardDataSolved nextValues
+
+isFieldCorrect :: BoardData -> Int -> Int -> Bool
+isFieldCorrect board value index =
+  ([value, value] \\ (numsForRow board $ rowIndex index)) == [value] &&
+  ([value, value] \\ (numsForCol board $ colIndex index)) == [value] &&
+  ([value, value] \\ (numsForBox board $ boxIndex index)) == [value]
+
+isFieldCorrectInRow :: BoardData -> Int -> Int -> Bool
+isFieldCorrectInRow board value index = ([value, value] \\ (numsForRow board $ rowIndex index)) == [value]
+
+isFieldCorrectInCol :: BoardData -> Int -> Int -> Bool
+isFieldCorrectInCol board value index = ([value, value] \\ (numsForCol board $ colIndex index)) == [value]
+
+isFieldCorrectInBox :: BoardData -> Int -> Int -> Bool
+isFieldCorrectInBox board value index = ([value, value] \\ (numsForBox board $ boxIndex index)) == [value]
+
 
 tryApplyMoves :: BoardData -> (Int, [Int]) -> BoardData
 tryApplyMoves _ (_, []) = []
@@ -73,11 +123,6 @@ tryApplyMoves board (index, move : nextMoves) =
   else tryApplyMoves board (index, nextMoves)
     where newBoard = setFieldOnBoardData board index move
           solvedBoard = solve newBoard (generateAllMoves newBoard)
-
-isBoardSolved :: BoardData -> Bool
-isBoardSolved [] = True
-isBoardSolved (0 : _) = False
-isBoardSolved (_ : nextValues) = isBoardSolved nextValues
 
 generateAllMoves :: BoardData -> MovesBoard
 generateAllMoves board = 
@@ -136,6 +181,15 @@ numsForBoxes board = map (\n -> getValuesOnIndexes board 0 (fieldsInBox !! n)) a
         getValuesOnIndexes (value : nextValues) fieldIndex (index : nextIndexes) =
           if fieldIndex == index then value : getValuesOnIndexes nextValues (fieldIndex + 1) nextIndexes
           else getValuesOnIndexes nextValues (fieldIndex + 1) (index : nextIndexes)
+
+numsForCol :: BoardData -> Int -> [Value]
+numsForCol board col = numsForCols board !! col
+
+numsForRow :: BoardData -> Int -> [Value]
+numsForRow board row = numsForRows board !! row
+
+numsForBox :: BoardData -> Int -> [Value]
+numsForBox board box = numsForBoxes board !! box
 
 fieldsInBox :: [[Int]]
 fieldsInBox = [

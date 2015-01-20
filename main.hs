@@ -87,14 +87,16 @@ drawMenu = do
   mvWAddStr stdScr 2 40 " 0-9    "
   mvWAddStr stdScr 3 40 " h      "
   mvWAddStr stdScr 4 40 " s      "
-  mvWAddStr stdScr 5 40 " q      "
+  mvWAddStr stdScr 5 40 " c      "
+  mvWAddStr stdScr 6 40 " q      "
 
   attrSet attr0 (Pair 1)
   mvWAddStr stdScr 1 48 " Show cursor"
   mvWAddStr stdScr 2 48 " Insert value"
   mvWAddStr stdScr 3 48 " Show hint"
   mvWAddStr stdScr 4 48 " Solve board"
-  mvWAddStr stdScr 5 48 " Quit"
+  mvWAddStr stdScr 5 48 " Check solution"
+  mvWAddStr stdScr 6 48 " Quit"
 
 -- main
 
@@ -116,7 +118,6 @@ main = do
   initPair (Pair 3) black white
   initPair (Pair 4) lightGrey black
 
-  -- runGame (loadBoardFromFile file) (0, 0) "Welcome! New sudoku is waiting for you"
   runGame BoardState { boardData = loadBoardFromFile file, cursorPosition = (0,0), infoBarState = "Welcome! New sudoku is waiting for you" }
 
 runGame :: BoardState -> IO ()
@@ -148,6 +149,11 @@ runGame state = do
         runGame $ boardState { infoBarState = "This board hasn't got a solution. Consider removing some digits" }
       Just 
         newBoardState -> runGame $ boardState { boardData = newBoardState }
+    KeyChar 'c' -> case isBoardSolved (boardData boardState) of
+      True -> runGame $ boardState { infoBarState = "Board solved" }
+      False -> case findIncorrectFieldIfAny $ boardData boardState of
+        Nothing -> runGame $ boardState { infoBarState = "Board is not solved" }
+        Just index -> runGame $ boardState { infoBarState = ("Board is not solved, conflicting fields in " ++ show index) }
     KeyChar char -> 
       if char `elem` "123456789 " then
         case setField (boardData boardState) (cursorIndex $ cursorPosition boardState) (if char == ' ' then 0 else (digitToInt char)) of 
