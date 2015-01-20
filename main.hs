@@ -102,23 +102,26 @@ drawMenu = do
 
 main :: IO ()
 main = do
-  window <- initScr
   args <- getArgs
-  file <- readFile $ head args
+  case args of
+    [] -> print "Filepath to sudoku board missing"
+    (fileName : _) -> do
+      file <- readFile fileName
+      window <- initScr
 
-  echo False
-  keypad window True
-  cursSet CursorInvisible
+      echo False
+      keypad window True
+      cursSet CursorInvisible
 
-  startColor
-  initColor grey (128, 128, 128)
-  initColor lightGrey (256, 256, 256)
-  initPair (Pair 1) white black
-  initPair (Pair 2) grey black
-  initPair (Pair 3) black white
-  initPair (Pair 4) lightGrey black
+      startColor
+      initColor grey (128, 128, 128)
+      initColor lightGrey (256, 256, 256)
+      initPair (Pair 1) white black
+      initPair (Pair 2) grey black
+      initPair (Pair 3) black white
+      initPair (Pair 4) lightGrey black
 
-  runGame BoardState { boardData = loadBoardFromFile file, cursorPosition = (0,0), infoBarState = "Welcome! New sudoku is waiting for you" }
+      runGame BoardState { boardData = loadBoardFromFile file, cursorPosition = (0,0), infoBarState = "Welcome! New sudoku is waiting for you" }
 
 runGame :: BoardState -> IO ()
 runGame state = do
