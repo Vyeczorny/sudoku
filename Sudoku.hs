@@ -38,9 +38,10 @@ loadBoardFromFile file = Board { fields = boardData, constFields = nonZeroFields
   where boardData = map convertStringToInt $ words file
         nonZeroFields = getAllNonZeroFields boardData
 
-setField :: Board -> Int -> Int -> Board
-setField board index newValue = Board { fields = setFieldOnBoardData (fields board) index newValue 
-                                      , constFields = constFields board }
+setField :: Board -> Int -> Int -> Maybe Board
+setField board index newValue = 
+  if index `elem` constFields board then Nothing
+  else Just Board { fields = setFieldOnBoardData (fields board) index newValue, constFields = constFields board }
 
 -- private 
 
@@ -91,7 +92,7 @@ getAllNonZeroFields :: BoardData -> [Index]
 getAllNonZeroFields board = getAllNonZeroFieldsAux board 0
   where getAllNonZeroFieldsAux [] _ = []
         getAllNonZeroFieldsAux (value : nextValues) index = 
-          if value /= 0 then (index : getAllNonZeroFieldsAux nextValues (index + 1))
+          if value /= 0 then index : getAllNonZeroFieldsAux nextValues (index + 1)
           else getAllNonZeroFieldsAux nextValues (index + 1)
 
 setFieldOnBoardData :: BoardData -> Int -> Int -> BoardData

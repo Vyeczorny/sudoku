@@ -18,6 +18,8 @@ import UI.HSCurses.CursesHelper as HSHelpers
 
 type CursorPosition = (Int, Int)
 
+-- initializations
+
 grey :: Color
 grey = Color 100
 
@@ -38,6 +40,8 @@ positionForIndex index = (row, col)
   where 
         row = (index `div` 9) * 2
         col = (index `mod` 9) * 4
+
+-- drawing functions
 
 drawField :: Int -> Int -> Bool -> IO ()
 drawField index value isConstField = do
@@ -80,6 +84,8 @@ drawMenu = do
   mvWAddStr stdScr 3 48 " Show hint"
   mvWAddStr stdScr 4 48 " Quit"
 
+-- main
+
 main :: IO ()
 main = do
   window <- initScr
@@ -116,14 +122,13 @@ runGame sudokuBoard (row, col) = do
     runGame sudokuBoard ((row + 1) `mod` 9, col)
   else let KeyChar char = c in
     if char == 'q' then
-      delWin stdScr >> endWin >> exitWith ExitSuccess
-    else if char `elem` ['1','2','3','4','5','6','7','8','9'] then
-      if (9 * row + col) `elem` constFields sudokuBoard then do
-        drawInfoBar $ "Cannot change value at point: " ++ show row ++ "," ++ show col
-        runGame sudokuBoard (row, col)
-      else runGame (setField sudokuBoard (9 * row + col) (digitToInt char)) (row, col)
-    else if char == ' ' then
-      runGame (setField sudokuBoard (9 * row + col) 0) (row, col)
+      delWin stdScr >> endWin >> exitSuccess
+    else if char `elem` "123456789 " then do
+      case setField sudokuBoard (9 * row + col) (if char == ' ' then 0 else (digitToInt char)) of 
+        Nothing -> do
+          drawInfoBar $ "Cannot change value at point: " ++ show row ++ "," ++ show col
+          runGame sudokuBoard (row, col)
+        Just newSudokuBoard -> runGame newSudokuBoard (row, col)
   else do
     drawInfoBar $ "Unrecognized key: " ++ show c
     runGame sudokuBoard (row, col)
