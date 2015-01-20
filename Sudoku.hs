@@ -29,9 +29,10 @@ allFieldIndexes = [0..80]
 
 -- public
 
-solveBoard :: Board -> Board
-solveBoard board = Board { fields = solve boardData (generateAllMoves boardData), constFields = constFields board }
-  where boardData = fields board
+solveBoard :: Board -> Maybe Board
+solveBoard board = case solve (fields board) (generateAllMoves (fields board)) of
+  [] -> Nothing
+  boardData -> Just Board { fields = boardData, constFields = getAllNonZeroFields boardData }
 
 loadBoardFromFile :: String -> Board
 loadBoardFromFile file = Board { fields = boardData, constFields = nonZeroFields }

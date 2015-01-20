@@ -76,13 +76,15 @@ drawMenu = do
   mvWAddStr stdScr 1 40 " Arrows "
   mvWAddStr stdScr 2 40 " 0-9    "
   mvWAddStr stdScr 3 40 " h      "
-  mvWAddStr stdScr 4 40 " q      "
+  mvWAddStr stdScr 4 40 " s      "
+  mvWAddStr stdScr 5 40 " q      "
 
   attrSet attr0 (Pair 1)
   mvWAddStr stdScr 1 48 " Show cursor"
   mvWAddStr stdScr 2 48 " Insert value"
   mvWAddStr stdScr 3 48 " Show hint"
-  mvWAddStr stdScr 4 48 " Quit"
+  mvWAddStr stdScr 4 48 " Solve board"
+  mvWAddStr stdScr 5 48 " Quit"
 
 -- main
 
@@ -123,6 +125,14 @@ runGame sudokuBoard (row, col) = do
   else let KeyChar char = c in
     if char == 'q' then
       delWin stdScr >> endWin >> exitSuccess
+    else if char == 'h' then
+      drawInfoBar "HINT"
+    else if char == 's' then
+      case solveBoard sudokuBoard of 
+        Nothing -> do
+          drawInfoBar $ "This board hasn't got a solution. Consider removing some digits"
+          runGame sudokuBoard (row, col)
+        Just newSudokuBoard -> runGame newSudokuBoard (row, col)
     else if char `elem` "123456789 " then do
       case setField sudokuBoard (9 * row + col) (if char == ' ' then 0 else (digitToInt char)) of 
         Nothing -> do
