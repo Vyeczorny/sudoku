@@ -28,7 +28,7 @@ drawBoard boardState = do
             drawField index value (index `elem` constFields boardState)
             drawBoardAux nextValues (index + 1)
 
-positionForIndex :: Int -> (Int, Int)
+positionForIndex :: Index -> (Int, Int)
 positionForIndex index = (row, col)
   where 
         row = (index `div` 9) * 2
@@ -53,7 +53,7 @@ cursorIndex (row, col) = 9 * row + col
 
 -- drawing functions
 
-drawField :: Int -> Int -> Bool -> IO ()
+drawField :: Index -> Value -> Bool -> IO ()
 drawField index value isConstField = do
   let (row, col) = positionForIndex index
   attrSet attr0 (Pair 2)
@@ -64,7 +64,7 @@ drawField index value isConstField = do
   else attrSet attr0 (Pair 1)
   mvWAddStr stdScr (row + 1) (col + 2) (if value == 0 then " " else show value)
  
-drawCursor :: (Int, Int) -> IO ()
+drawCursor :: CursorPosition -> IO ()
 drawCursor (row, col) = do
   attrSet attr0 (Pair 1)
   mvWAddStr stdScr (row * 2)     (col * 4)     "+---+"

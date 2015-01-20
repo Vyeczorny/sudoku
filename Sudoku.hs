@@ -1,6 +1,8 @@
 module Sudoku (
   Board, fields, constFields,
   MovesBoard,
+  Index,
+  Value,
   loadBoardFromFile,
   setField,
   solveBoard,
@@ -20,7 +22,7 @@ type Index = Int
 type BoardData = [Value]
 data Board = Board
   { fields       :: BoardData
-  , constFields :: [Index]
+  , constFields  :: [Index]
   } deriving Show
 data IncorrectField = Row Int | Column Int | Box Int deriving Show
 type MovesBoard = [[Value]]
@@ -46,12 +48,12 @@ loadBoardFromFile file = Board { fields = boardData, constFields = nonZeroFields
   where boardData = map convertStringToInt $ words file
         nonZeroFields = getAllNonZeroFields boardData
 
-setField :: Board -> Int -> Int -> Maybe Board
+setField :: Board -> Index -> Value -> Maybe Board
 setField board index newValue = 
   if index `elem` constFields board then Nothing
   else Just Board { fields = setFieldOnBoardData (fields board) index newValue, constFields = constFields board }
 
-getHint :: Board -> Maybe (Int, Int)
+getHint :: Board -> Maybe (Index, Value)
 getHint board = if isBoardSolved board || not (isBoardCorrect board) then Nothing else
   case getAllZeroFields $ fields board of 
     [] -> Nothing
@@ -98,23 +100,23 @@ isBoardDataSolved [] = True
 isBoardDataSolved (0 : _) = False
 isBoardDataSolved (_ : nextValues) = isBoardDataSolved nextValues
 
-isFieldCorrect :: BoardData -> Int -> Int -> Bool
+isFieldCorrect :: BoardData -> Value -> Index -> Bool
 isFieldCorrect board value index =
   ([value, value] \\ numsForRow board (rowIndex index)) == [value] &&
   ([value, value] \\ numsForCol board (colIndex index)) == [value] &&
   ([value, value] \\ numsForBox board (boxIndex index)) == [value]
 
-isFieldCorrectInRow :: BoardData -> Int -> Int -> Bool
+isFieldCorrectInRow :: BoardData -> Value -> Index -> Bool
 isFieldCorrectInRow board value index = ([value, value] \\ numsForRow board (rowIndex index)) == [value]
 
-isFieldCorrectInCol :: BoardData -> Int -> Int -> Bool
+isFieldCorrectInCol :: BoardData -> Value -> Index -> Bool
 isFieldCorrectInCol board value index = ([value, value] \\ numsForCol board (colIndex index)) == [value]
 
-isFieldCorrectInBox :: BoardData -> Int -> Int -> Bool
+isFieldCorrectInBox :: BoardData -> Value -> Index -> Bool
 isFieldCorrectInBox board value index = ([value, value] \\ numsForBox board  (boxIndex index)) == [value]
 
 
-tryApplyMoves :: BoardData -> (Int, [Int]) -> BoardData
+tryApplyMoves :: BoardData -> (Index, [Value]) -> BoardData
 tryApplyMoves _ (_, []) = []
 tryApplyMoves board (index, move : nextMoves) = 
   if solvedBoard /= [] then solvedBoard
@@ -132,7 +134,7 @@ generateAllMoves board =
     cols = numsForCols board
     boxes = numsForBoxes board
 
-getNonSolvedField :: BoardData -> MovesBoard -> (Int, [Int])
+getNonSolvedField :: BoardData -> MovesBoard -> (Index, [Value])
 getNonSolvedField board movesBoard = getNonSolvedFieldAux board movesBoard 0 (-1, [1..10])
   where
     getNonSolvedFieldAux [] _ _ (bestIndex, bestMoves) = (bestIndex, bestMoves)
@@ -158,22 +160,22 @@ getAllZeroFields board = getAllZeroFieldsAux board 0
           if value == 0 then index : getAllZeroFieldsAux nextValues (index + 1)
           else getAllZeroFieldsAux nextValues (index + 1)
 
-setFieldOnBoardData :: BoardData -> Int -> Int -> BoardData
+setFieldOnBoardData :: BoardData -> Index -> Value -> BoardData
 setFieldOnBoardData (_ : nextValues) 0 newValue = newValue : nextValues
 setFieldOnBoardData (value : nextValues) index newValue = value : setFieldOnBoardData nextValues (index - 1) newValue
 
 convertStringToInt :: String -> Int
 convertStringToInt str = if str == "." then 0 else read str :: Int
 
-numsForRows :: BoardData -> [[Int]]
+numsForRows :: BoardData -> [[Value]]
 numsForRows = chunksOf 9 
 
-numsForCols :: BoardData -> [[Int]]
+numsForCols :: BoardData -> [[Value]]
 numsForCols board = map (\n -> getEvery9 $ drop n board) allIndexes
   where getEvery9 [] = []
         getEvery9 _board = head _board : getEvery9 (drop 9 _board)
 
-numsForBoxes :: BoardData -> [[Int]]
+numsForBoxes :: BoardData -> [[Value]]
 numsForBoxes board = map (\n -> getValuesOnIndexes board 0 (fieldsInBox !! n)) allIndexes
   where getValuesOnIndexes _ _ [] = []
         getValuesOnIndexes (value : nextValues) fieldIndex (index : nextIndexes) =
@@ -189,7 +191,7 @@ numsForRow board row = numsForRows board !! row
 numsForBox :: BoardData -> Int -> [Value]
 numsForBox board box = numsForBoxes board !! box
 
-fieldsInBox :: [[Int]]
+fieldsInBox :: [[Index]]
 fieldsInBox = [
                 [0,1,2,9,10,11,18,19,20],
                 [3,4,5,12,13,14,21,22,23],
@@ -202,11 +204,11 @@ fieldsInBox = [
                 [60,61,62,69,70,71,78,79,80]
               ]
 
-boxIndex :: Int -> Int
+boxIndex :: Index -> Int
 boxIndex n = (n `div` 27) * 3 + (n `mod` 9 `div` 3)
 
-rowIndex :: Int -> Int
+rowIndex :: Index -> Int
 rowIndex n = n `div` 9
 
-colIndex :: Int -> Int
+colIndex :: Index -> Int
 colIndex n = n `mod` 9
