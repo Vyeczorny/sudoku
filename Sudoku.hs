@@ -52,13 +52,12 @@ setField board index newValue =
   else Just Board { fields = setFieldOnBoardData (fields board) index newValue, constFields = constFields board }
 
 getHint :: Board -> Maybe (Int, Int)
-getHint board = case isBoardSolved board || not (isBoardCorrect board) of
-  True -> Nothing
-  False -> case getAllZeroFields $ fields board of 
+getHint board = if isBoardSolved board || not (isBoardCorrect board) then Nothing else
+  case getAllZeroFields $ fields board of 
     [] -> Nothing
     zeroFields -> case solveBoard board of
       Nothing -> Nothing
-      Just solvedBoard -> Just (fieldIndex, (fields solvedBoard) !! fieldIndex)
+      Just solvedBoard -> Just (fieldIndex, fields solvedBoard !! fieldIndex)
         where randNumber = unsafePerformIO $ randomRIO (0, length zeroFields - 1)
               fieldIndex = zeroFields !! randNumber
 
@@ -67,8 +66,7 @@ isBoardCorrect board = isBoardCorrectAux f 0
   where f = fields board
         isBoardCorrectAux [] _ = True
         isBoardCorrectAux (value : nextValues) index =
-          if value /= 0 && (not $ isFieldCorrect f value index) then False
-          else isBoardCorrectAux nextValues (index + 1)
+          not (value /= 0 && not (isFieldCorrect f value index)) && isBoardCorrectAux nextValues (index + 1)
 
 findIncorrectFieldIfAny :: Board -> Maybe IncorrectField
 findIncorrectFieldIfAny board = findIncorrectFieldIfAnyAux f 0
@@ -83,7 +81,7 @@ findIncorrectFieldIfAny board = findIncorrectFieldIfAnyAux f 0
           else findIncorrectFieldIfAnyAux nextValues (index + 1)
 
 isBoardSolved :: Board -> Bool
-isBoardSolved board = isBoardCorrect board && (isBoardDataSolved $ fields board)
+isBoardSolved board = isBoardCorrect board && isBoardDataSolved (fields board)
 
 -- private 
 
@@ -102,18 +100,18 @@ isBoardDataSolved (_ : nextValues) = isBoardDataSolved nextValues
 
 isFieldCorrect :: BoardData -> Int -> Int -> Bool
 isFieldCorrect board value index =
-  ([value, value] \\ (numsForRow board $ rowIndex index)) == [value] &&
-  ([value, value] \\ (numsForCol board $ colIndex index)) == [value] &&
-  ([value, value] \\ (numsForBox board $ boxIndex index)) == [value]
+  ([value, value] \\ numsForRow board (rowIndex index)) == [value] &&
+  ([value, value] \\ numsForCol board (colIndex index)) == [value] &&
+  ([value, value] \\ numsForBox board (boxIndex index)) == [value]
 
 isFieldCorrectInRow :: BoardData -> Int -> Int -> Bool
-isFieldCorrectInRow board value index = ([value, value] \\ (numsForRow board $ rowIndex index)) == [value]
+isFieldCorrectInRow board value index = ([value, value] \\ numsForRow board (rowIndex index)) == [value]
 
 isFieldCorrectInCol :: BoardData -> Int -> Int -> Bool
-isFieldCorrectInCol board value index = ([value, value] \\ (numsForCol board $ colIndex index)) == [value]
+isFieldCorrectInCol board value index = ([value, value] \\ numsForCol board (colIndex index)) == [value]
 
 isFieldCorrectInBox :: BoardData -> Int -> Int -> Bool
-isFieldCorrectInBox board value index = ([value, value] \\ (numsForBox board $ boxIndex index)) == [value]
+isFieldCorrectInBox board value index = ([value, value] \\ numsForBox board  (boxIndex index)) == [value]
 
 
 tryApplyMoves :: BoardData -> (Int, [Int]) -> BoardData

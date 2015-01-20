@@ -130,7 +130,7 @@ runGame state = do
   drawMenu
   Main.drawCursor $ cursorPosition state
 
-  boardState <- return $ state { infoBarState = "" }
+  let boardState = state { infoBarState = "" }
 
   c <- getCh
   case c of
@@ -152,16 +152,16 @@ runGame state = do
         runGame $ boardState { infoBarState = "This board hasn't got a solution. Consider removing some digits" }
       Just 
         newBoardState -> runGame $ boardState { boardData = newBoardState }
-    KeyChar 'c' -> case isBoardSolved (boardData boardState) of
-      True -> runGame $ boardState { infoBarState = "Board solved" }
-      False -> case findIncorrectFieldIfAny $ boardData boardState of
-        Nothing -> runGame $ boardState { infoBarState = "Board is not solved" }
-        Just index -> runGame $ boardState { infoBarState = ("Board is not solved, conflicting fields in " ++ show index) }
+    KeyChar 'c' -> if isBoardSolved (boardData boardState) then
+                      runGame $ boardState { infoBarState = "Board solved" }
+                   else case findIncorrectFieldIfAny $ boardData boardState of
+                      Nothing -> runGame $ boardState { infoBarState = "Board is not solved" }
+                      Just index -> runGame $ boardState { infoBarState = "Board is not solved, conflicting fields in " ++ show index }
     KeyChar char -> 
       if char `elem` "123456789 " then
-        case setField (boardData boardState) (cursorIndex $ cursorPosition boardState) (if char == ' ' then 0 else (digitToInt char)) of 
+        case setField (boardData boardState) (cursorIndex $ cursorPosition boardState) (if char == ' ' then 0 else digitToInt char) of 
           Nothing->
-            runGame $ boardState { infoBarState = "Cannot change value at point: " ++ (show $ cursorPosition boardState) }
+            runGame $ boardState { infoBarState = "Cannot change value at point: " ++ show (cursorPosition boardState) }
           Just newBoardState -> 
             runGame $ boardState { boardData = newBoardState }
       else
