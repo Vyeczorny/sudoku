@@ -4,21 +4,14 @@ import System.Exit
 import Data.Char
 import UI.HSCurses.Curses as HSCurses
 import UI.HSCurses.CursesHelper as HSHelpers
--- import Data.List.Split
-
--- main :: IO ()
--- main = do
---   args <- getArgs
---   if null args then
---     print "[ERROR] Filepath to file with board required"
---   else do
---     file <- readFile $ head args
---     let sudokuBoard = loadBoardFromFile file
---     mapM_ print $ chunksOf 9 $ fields $ solveBoard sudokuBoard
-
-type CursorPosition = (Int, Int)
 
 -- initializations
+
+type CursorPosition = (Int, Int)
+data BoardState = BoardState { boardData :: Board
+                             , cursorPosition :: CursorPosition
+                             , infoBarState :: String 
+                             }
 
 grey :: Color
 grey = Color 100
@@ -27,12 +20,12 @@ lightGrey :: Color
 lightGrey = Color 101
 
 drawBoard :: Board -> IO ()
-drawBoard sudokuBoard = do
-  drawBoardAux (fields sudokuBoard) 0
+drawBoard boardState = do
+  drawBoardAux (fields boardState) 0
   refresh
-    where drawBoardAux [value] index = drawField index value (index `elem` constFields sudokuBoard)
+    where drawBoardAux [value] index = drawField index value (index `elem` constFields boardState)
           drawBoardAux (value : nextValues) index = do
-            drawField index value (index `elem` constFields sudokuBoard)
+            drawField index value (index `elem` constFields boardState)
             drawBoardAux nextValues (index + 1)
 
 positionForIndex :: Int -> (Int, Int)
@@ -40,6 +33,23 @@ positionForIndex index = (row, col)
   where 
         row = (index `div` 9) * 2
         col = (index `mod` 9) * 4
+
+-- manipulating cursor
+
+moveCursorLeft :: CursorPosition -> CursorPosition
+moveCursorLeft (row, col) = (row, (col - 1) `mod` 9)
+
+moveCursorRight :: CursorPosition -> CursorPosition
+moveCursorRight (row, col) = (row, (col + 1) `mod` 9)
+
+moveCursorUp :: CursorPosition -> CursorPosition
+moveCursorUp (row, col) = ((row - 1) `mod` 9, col)
+
+moveCursorDown :: CursorPosition -> CursorPosition
+moveCursorDown (row, col) = ((row + 1) `mod` 9, col)
+
+cursorIndex :: CursorPosition -> Int
+cursorIndex (row, col) = 9 * row + col
 
 -- drawing functions
 
@@ -106,62 +116,44 @@ main = do
   initPair (Pair 3) black white
   initPair (Pair 4) lightGrey black
 
-  runGame (loadBoardFromFile file) (0, 0)
+  -- runGame (loadBoardFromFile file) (0, 0) "Welcome! New sudoku is waiting for you"
+  runGame BoardState { boardData = loadBoardFromFile file, cursorPosition = (0,0), infoBarState = "Welcome! New sudoku is waiting for you" }
 
-runGame :: Board -> CursorPosition -> IO ()
-runGame sudokuBoard (row, col) = do
-  drawBoard sudokuBoard
+runGame :: BoardState -> IO ()
+runGame state = do
+  drawBoard $ boardData state
+  drawInfoBar $ infoBarState state
   drawMenu
-  Main.drawCursor (row, col)
+  Main.drawCursor $ cursorPosition state
+
+  boardState <- return $ state { infoBarState = "" }
+
   c <- getCh
   case c of
-    KeyLeft -> runGame sudokuBoard (row, (col - 1) `mod` 9)  
-    KeyRight -> runGame sudokuBoard (row, (col + 1) `mod` 9)
-    KeyUp -> runGame sudokuBoard ((row - 1) `mod` 9, col)
-    KeyDown -> runGame sudokuBoard ((row + 1) `mod` 9, col)
-    KeyChar 'q' -> delWin stdScr >> endWin >> exitSuccess
-    -- KeyChar 'h' -> runGame sudokuBoard (row, col)
-    KeyChar 'h' -> case getHint sudokuBoard of
-      Nothing -> do
-        drawInfoBar $ "Application cannot gives you any hints"
-        runGame sudokuBoard (row, col)
-      Just (pos, value) -> case setField sudokuBoard pos value of
-        Nothing -> do
-          drawInfoBar $ "Cannot change value at index: " ++ show pos
-          runGame sudokuBoard (row, col)
-        Just newSudokuBoard -> runGame newSudokuBoard (row, col)
-    KeyChar 's' -> case solveBoard sudokuBoard of 
-      Nothing -> do
-        drawInfoBar $ "This board hasn't got a solution. Consider removing some digits"
-        runGame sudokuBoard (row, col)
-      Just newSudokuBoard -> runGame newSudokuBoard (row, col)
+    KeyLeft      -> runGame $ boardState { cursorPosition = moveCursorLeft $ cursorPosition boardState }
+    KeyRight     -> runGame $ boardState { cursorPosition = moveCursorRight $ cursorPosition boardState }
+    KeyUp        -> runGame $ boardState { cursorPosition = moveCursorUp $ cursorPosition boardState }
+    KeyDown      -> runGame $ boardState { cursorPosition = moveCursorDown $ cursorPosition boardState }
+    KeyChar 'q'  -> delWin stdScr >> endWin >> exitSuccess
+    KeyChar 'h'  -> case getHint $ boardData boardState of
+      Nothing ->
+        runGame $ boardState { infoBarState = "Application cannot gives you any hints" }
+      Just (pos, value) -> case setField (boardData boardState) pos value of
+        Nothing ->
+          runGame $ boardState { infoBarState = "Cannot change value at index: " ++ show pos }
+        Just newBoardState -> 
+          runGame $ boardState { boardData = newBoardState }
+    KeyChar 's'  -> case solveBoard (boardData boardState) of 
+      Nothing ->
+        runGame $ boardState { infoBarState = "This board hasn't got a solution. Consider removing some digits" }
+      Just 
+        newBoardState -> runGame $ boardState { boardData = newBoardState }
     KeyChar char -> 
-      if char `elem` "123456789 " then do
-        case setField sudokuBoard (9 * row + col) (if char == ' ' then 0 else (digitToInt char)) of 
-          Nothing -> do
-            drawInfoBar $ "Cannot change value at point: " ++ show row ++ "," ++ show col
-            runGame sudokuBoard (row, col)
-          Just newSudokuBoard -> runGame newSudokuBoard (row, col)
-      else do
-        drawInfoBar $ "Unrecognized key: " ++ show c
-        runGame sudokuBoard (row, col)
-
-
-
-  -- c <- getCh
-  -- if c == KeyChar 'q' then delWin stdScr >> endWin >> exitWith ExitSuccess
-  -- else if c == KeyLeft then do
-  --     -- put (loadBoardFromFile file, (0, 0))
-  --     print ""
-  -- else do
-  --       mvWAddStr stdScr 7 200 $ "You pressed: " ++ show c
-  --     --   clrToEol
-  --     --   mvWAddStr window 7 10 $ "You pressed: " ++ show c
-  --     --   refresh
-
-
-
-
-
-
-
+      if char `elem` "123456789 " then
+        case setField (boardData boardState) (cursorIndex $ cursorPosition boardState) (if char == ' ' then 0 else (digitToInt char)) of 
+          Nothing->
+            runGame $ boardState { infoBarState = "Cannot change value at point: " ++ (show $ cursorPosition boardState) }
+          Just newBoardState -> 
+            runGame $ boardState { boardData = newBoardState }
+      else
+        runGame $ boardState { infoBarState = "Unrecognized key: " ++ show c }
