@@ -20,6 +20,8 @@ $ cabal install
 
 **Uwaga:** w czasie redagowania tego pliku, Cabal kończył pracę z błędem podczas wykonywania instrukcji `cabal install --only-dependencies`, było to związane z problemami zależności dla biblioteki `hscurses`. Wersja bilbioteki pobrana wprost z repozytorium właściciela jest pozbawiona tych błędów, zatem w razie konieczności zaleca się własnoręczne pobranie `hscurses` i manualną intalację w środowisku sandboxowym, a następnie ponowienie instrukcji powyżej.
 
+
+Aby manualnie zainstalować `hscurses` należy wykonać następujące instrukcje:
 ```
 $ cd sciezka_do_folderu_z_pobranym_sudoku
 $ git clone https://github.com/skogsbaer/hscurses.git
